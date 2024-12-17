@@ -1,0 +1,40 @@
+version: '3'
+
+services:
+  devicedb:
+    image: mysql
+    container_name: device_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: 'device-db'
+      MYSQL_ROOT_PASSWORD: 'root'
+    ports:
+      - "3308:3306"
+    networks:
+      - demo_net
+
+  device_management:
+    image: device-management
+    depends_on:
+      - devicedb
+    deploy:
+      replicas: 2
+    environment:
+      - DB_IP=devicedb
+      - DB_PORT=3306
+      - DB_DBNAME=device-db
+      - DB_USER=root
+      - DB_PASSWORD=root
+    networks:
+      - demo_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.device_management.rule=Host(`device.localhost`) || PathPrefix(`/device-api`)"
+      - "traefik.http.middlewares.device_management-strip.stripprefix.prefixes=/device-api"
+      - "traefik.http.routers.device_management.middlewares=device_management-strip "
+      - "traefik.http.services.device_management.loadbalancer.server.port=8081"
+
+networks:
+  demo_net:
+    driver: bridge
+    external: true
